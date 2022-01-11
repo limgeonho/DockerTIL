@@ -1,0 +1,330 @@
+############################################################
+삭제 명령
+
+docker stop $(docker ps -a -q)
+docker rm $(docker ps -a -q)
+docker rmi -f $(docker images -q)
+
+############################################################
+
+히스토리 보는방법[docker history]
+docker history myweb => myweb의 히스토리를 볼 수 있다.
+
+컨테이너의 특정파일을 호스트 pc로 가져오는 방법[docker cp]
+docker cp mywebserver:/etc/apache2/sites-available/000-default.conf ./
+=> 컨테이너안에 mywebserver:/etc/apache2/sites-available/000-default.conf의 파일을 ./(현재 위치)에 가져온다.
+=> 반대로 쓰면 호스트의 파일을 컨테이너의 특정파일에 내보낸다.
+
+컨테이너 변경사항을 이미지 파일로 생성하는 방법[docker commit]
+내가 만든 이미지를 따로 저장해 놓을 때 => docker commit -m "add vim" mywebserver vimweb
+
+컨테이너가 실행되면서, 기존의 이미지와 비교해서 변경된 파일 목록 출력[docker diff]
+=> docker diff mywebserver 
+A == 파일 또는 디렉토리 추가
+D == 파일 또는 디렉토리 삭제
+C == 파일 또는 디렉토리 수정
+
+이미지와 컨테이너 세부 정보 확인[docker inspect]
+
+컨테이너의 출력결과를 확인[docker logs]
+
+############################################################
+
+컨테이너 활용과 연결
+docker 로 jupyter notebook 띄우기
+
+쥬피터 노트북의 공식 이미지 => jupyter/datascience-notebook
+
+쥬피터 노트북 설치하기
+=> $ docker run --rm -d -p 8888:8888 -v /home/ubuntu/2021_LEARN/:/home/jovyan/work jupyter/datascience-notebook[컨테이너 만들기]
+=> 인바운드규칙에 8888추가하기
+=> 3.34.73.112:8888 로 들어가면 token을 요구한다
+=> $ docker logs containerID 
+=> token 값만 복사해서 붙여넣기
+=> vi Dockerfile-mysql 만들기
+=> $ docker build --tag mysqldb -f Dockerfile-mysql . [이미지 만들기]
+=> $ docker run -d -p 3306:3306 --name mydb -v /home/ubuntu/mysqldata:/var/lib/mysql mysqldb[컨테이너 만들기]
+
+############################################################
+
+컨테이너와 컨테이너 연결하기
+docker run의 옵션으로 --link옵션을 사용해서 연결(내부적으로)
+--link<본래의 컨테이너 이름>:<컨테이너를 가리킬 이름>
+
+=> $ docker build --tag mysqldb -f Dockerfile-mysql . [이미지 만들기]
+=> $ docker run --rm -d --name mydb -v /home/ubuntu/mysqldata:/var/lib/mysql mysqldb [mysql컨테이너 만들기]
+=> $ docker run --rm -d -p 8888:8888 -v /home/ubuntu/2021_LEARN/:/home/jovyan/work --link mydb:myjupyterdb jupyter/datascience-notebook [mydb와 연결한 jupyter컨테이너 만들기]
+
+############################################################
+############################################################
+
+Docker Compose
+여러 컨테이너를 모아서 관리하기 위한 툴
+why? => 프런트 서버, 백 서버, 데이터베이스 등 다양하게 컨테이너를 만들어서 서로 연결해야함
+
+Docker Compose 작성
+docker-compose.yml 파일을 작성하여 실행
+
+############################################################
+
+docker-compose.yml 에는 기본적으로 작성하는 카테고리(key)가 존재한다.
+1. version : Docker Compose 파일 포맷 버전 지정
+2. services : 위 항목 아래에서 여러개 또는 하나의 컨테이너를 설정함(하위의 항목들을 설정한다고 생각 한번에)
+3. volumes : docker run 옵션 중 -v와 같은 역할(여러개 작성 가능)
+4. networks
+ 
+version: "3"
+=> 버전 3
+
+services:
+  db:
+    image: mysql:5.7
+    restart: always
+    volumes:
+      - ./mysqldata:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=funcoding
+      - MYSQL_DATABASE=fundb
+    ports:
+      - "3306:3306"
+
+=> db라는 컨테이너 아래 mysql5.7을 base로 하는 이미지 
+=> restart: always는 만약에 컨테이너가 종료되면 알아서 restart되버림 bb
+=> volumes 하위에 여러개의 -v옵션을 줄 수 있음
+=> environment 는 ENV와 같음
+=> ports 는 docker run 옵션 중 -p와 같은 역할(하지만 YAML에서는 3306:3306을 시간으로 판단하기 때문에 "3306:3306"으로 작성한다!)
+
+############################################################
+
+docker-compose.yml 파일 실행하기(사용법 1)
+
+=> $ vi docker-compose.yml [docker-compose 파일 만들기]
+=> 해당 yml 파일안에 docker-compose 내용 작성
+=> $ docker-compose up -d [백그라운드로 docker-compose 파일 실행]
+=> $ docker-compose stop [docker-compose 파일 실행 중지]
+=> $ docker-compose down [docker-compose 파일 삭제]
+
+docker-compose 는 해당 .yml 파일이 있는 폴더안에서 up, down 한다
+
+############################################################
+
+docker-compose.yml 파일에 컨테이너를 추가해서 연결(사용법 2)
+
+version: "3"
+
+services:
+  app:
+    build:
+      context: ./01_FLASK_DOCKER
+      dockerfile: Dockerfile
+    links:
+      - "db:mysqldb"
+    ports:
+      - "80:8080"
+    container_name: appcontainer
+    depends_on:
+      - db
+
+=> app 이라는 컨테이너와 db라는 컨테이너를 하나의 docker-compose 파일 안에서 실행
+=> build 하위에 context는 Dockerfile 이 있는 디렉토리 / dockerfile는 Dockerfile 파일명
+=> links 컨테이너 내부에서 다른 컨테이너를 접속하고 싶을 때 사용(예시는 db컨테이너를 app컨테이너에서 사용하고 싶을 때 : mysqldb라는 이름으로)
+=> container_name 해당 컨테이너의 이름은 appcontainer 
+=> depends_on app 컨테이너가 시작되기 전에 미리 db컨테이너 먼저 실행!
+
+  db:
+    image: mysql:5.7
+    volumes:
+      - ./mysqldata:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=funcoding
+      - MYSQL_DATABASE=fundb
+    ports:
+      - "3306:3306"
+    container_name: dbcontainer
+
+$ docker-compose logs : 로그 기록 확인
+$ docker-compose config : 해당 docker-compose.yml 내용 확인 
+
+############################################################
+############################################################
+
+nginx 기본 사용법
+
+=> $ docker run -dit -p 80:8080 --name myos ubuntu:20.04 [ubuntu 설치]
+=> $ docker exec -it myos /bin/bash [해당 컨테이너로 들어가기]
+=> # apt-get update [업데이트]
+=> # apt-get install nginx=1.18.0-0ubuntu1[nginx 설치]
+=> # apt-get install vim [vim 설치]
+
+=> # find -name nginx.conf [/(루트 폴더 하위의) nginx.conf의 위치를 찾아줘!]
+
+=> # service nginx restart [nginx 재시작]
+
+나머지 사항은 강의록 참고!!
+=> http 경로에 따라서 다르게 분류하는 방법 + default 파일 내용 해석
+
+############################################################
+############################################################
+
+nginx reverse proxy
+
+proxy서버란?
+=> 클라이언트가 자신(proxy)을 통해 다른 네트워크 서비스에 접속하게 해줄 수 있는 서버(말 그대로 대신해서 서빙하는 존재)
+
+Forward Proxy
+ㅈㄱ 같은 나라에서는 proxy 서버를 통해 일부 서비스를 제한한다.
+중간에서 뭔가 함
+
+Reverse Proxy
+관련 요청에 따라 적절한 내부 서버에 접속하여 결과를 얻은 후 클라이언트에 전달
+내부 데이터베이스등의 직접 접속등을 허용하지 않을 수 있으므로 보안에 유익
+트래픽을 관리할 수 있는 로드밸런싱 등에도 유익함
+=> 따라서 웹서비스를 만들때 필요함
+
+http 요청이 들어온다 -> nginx reverse proxy에서 적절한 분류(포트, 주소) -> 해당 서버로 전달 -> 연산, 처리 -> 다시 reverse proxy -> return
+
+############################################################
+nginx reverse proxy 설정1(port)
+
+version: "3"
+
+services:
+    nginxproxy:
+        image: nginx:1.18.0
+        ports:
+            - "8080:8080"	## docker-compose를 통해 한 번에 여러개의 컨테이너를 만들고 외부 port로는 8080과 8081만 열어둔다.
+            - "8081:8081"
+        restart: always
+        volumes:
+            - "./nginx/nginx.conf:/etc/nginx/nginx.conf"
+
+    nginx:
+        depends_on:
+            - nginxproxy
+        image: nginx:1.18.0
+        restart: always
+
+    apache:
+        depends_on:
+            - nginxproxy
+        image: httpd:2.4.46
+        restart: always
+
+########### nginx.conf ###########
+
+## upstream 을 통해 각각의 컨테이너서버를 정의한다.
+ upstream docker-nginx {
+        server nginx:80;
+    }
+
+    upstream docker-apache {
+        server apache:80;
+    }
+
+## proxy_redirect, proxy_set_header 는 그냥 복사해서 사용하자...!!
+## 해당 8080 port 요청시 어떤 컨테이너로 연결하는지 정의한다.
+    server {
+        listen 8080;
+
+        location / {
+            proxy_pass         http://docker-nginx;
+            proxy_redirect     off;
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Host $server_name;
+        }
+    }
+
+## 해당 8081 port 요청시 어떤 컨테이너로 연결하는지 정의한다.
+    server {
+        listen 8081;
+
+        location / {
+            proxy_pass         http://docker-apache;
+            proxy_redirect     off;
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Host $server_name;
+        }
+    }
+
+############################################################
+nginx reverse proxy 설정2(경로)
+
+############################################################
+nginx reverse proxy 설정3(경로) - 내부 서버에 요청하는 경로는 변경하기
+
+############################################################
+############################################################
+[클론 코딩]
+mkdir blog
+mv * blog
+
+############################################################
+[volume]
+
+docker-compose의 volume는 Dockerfile의 COPY와 비슷한 맥락이다
+호스트 pc의 폴더:컨테이너 내부의 폴더 로 연결하기
+
+[volume 삭제]
+
+###########삭제명령###########
+docker stop $(docker ps -a -q)
+docker rm $(docker ps -a -q)
+docker rmi -f $(docker images -q)
+docker system prune -a --volumes
+#############################
+
+3 중 1 가지 선택
+docker volume rm 볼륨이름
+docker volume prune  =>  쓰지 않는 볼륨 삭제
+docker system prune -a --volumes
+
+############################################################
+############################################################
+https
+
+http에 보안을 추가하는 필수적인 프로토콜
+
+https를 지원하기 위해서는 도메인, 인증서 발급이 필요함(443)
+
+Let's Encrypt / certbot
+
+가비아에서 도메인을 구입하면 네임서버를 받는다.
+해당 네임서버(DNS)와 EC2의 IP주소를 연결한다.(DNS 레코드 설정)
+
+docker-compose.yml 에 certbot 컨테이너를 추가한다. => 추가적으로 관련 명령어 입력
+## command 추가
+
+certbot에서 발급해준 인증서 정보를 volume옵션을 통해 하나의 폴더에서 공유한다 
+=> 나중에 요청이 들어오면 proxy서버에서는 공유된 인증서를 통해 인증함
+
+############################################################
+이제 certbot의 command에서 dry-run 옵션을 빼고 인증서를 발급받자!!(90일에 한 번씩 다시 재발급)
+추가적으로 https 설정하기
+
+############################################################
+자동으로 인증서 갱신
+crontab 이용 => 주기적으로 특정 프로그램을 실행함 
+
+############################################################
+############################################################
+flask 서버 띄우기
+
+web server(정적, nginx, apache) <-> WSGI(web server gateway interface, python) <-> WAS(동적, django, flask...)
+Middleware(gunicorn)에서 WSGI를 사용해서 웹서버와 WAS가 통신한다(프로토콜) 
+
+############################################################
+flask 서버를 gunicorn을 통해서 reverse proxy서버(nginx)와 통신한다.(경로로 분류)
+
+############################################################
+마지막 최종 13번
+frontend는 myweb폴더에 html/css/js 등의 파일을 업로드하면 바로 적용됨
+
+하지만 backend는 서버 재실행 필요
+=> docker-compose restart flask
+이미지까지 다시 만들어야 하는 경우
+=> docker-compose up -d --force-recreate --no-deps --build flask
+
