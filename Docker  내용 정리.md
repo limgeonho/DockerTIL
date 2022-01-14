@@ -211,4 +211,14 @@
 
 ### 6. Dockerfile
 
-​	1. 
+- Dockerfile는 자신이 직접 커스터마이징한 docker 이미지를 만들 수 있는 파일이다.
+- 실제로 배포과정에서는 거의 필수적으로 작성한다.
+- #이 Dockerfile의 주석이다.
+- 다양한 이미지들의 script를 쌓아서 만든다.
+- Dockerfile 만들기
+  1. 원하는 위치로 가서 vi Dockerfile : Dockerfile이름의 도커 파일이 만들어진다.
+  2. Dockerfile 내용 작성
+  3. docker build --tag myimage . : 내가 작성한 Dockerfile로 이미지 만들기
+
+1. Dockerfile 내부 명령어
+   - LABEL maintainer= "geonho" : geonho가 작성자(key : value 형식)
