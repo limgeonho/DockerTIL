@@ -1,6 +1,6 @@
-## Docker  내용 정리
+## Docker [basic] 
 
-### 
+
 
 ### 1. docker를 사용하는 이유
 
@@ -108,7 +108,7 @@
 
 ### 5. docker의 주요 구성 요소
 
-- docker engine : docker command -> docker demon process에서 resp api로 통신함
+- docker engine : docker command -> docker demon process에서 rest api로 통신함
 
 - docker image : 컨테이너를 생성하기 위한 명령들(script)을 모은 템플릿(script들을 쌓는다 layer로)
 
@@ -116,7 +116,7 @@
 
 - 결론 : docker image를 쌓아서 docker container로 만든 뒤에 동작
 
-- 명령어[image]
+- 명령어[image 관련]
 
   1. docker hub에 회원가입
   2. docker login : username과 password를 입력 후 로그인
@@ -129,7 +129,7 @@
   9. docker rmi 이름:태그 : 삭제
   10. docker rmi 이미지ID : 삭제
 
-- 명령어[container]
+- 명령어[container 관련]
 
   1. docker create ubuntu : 컨테이너 생성
 
@@ -145,7 +145,7 @@
 
   7. docker start 컨테이너이름 : 컨테이너 실행
 
-  8. docker run 옵션
+  8. docker run 옵션(run을 사용하면 알아서 이미지를 다운받고 컨테이너로 만들어버림)
 
      - -i : 컨테이너 표준입력을 열기
      - -t : 가상 터미널
@@ -168,7 +168,7 @@
 
   12. docker run -d --name apacheweb httpd 
 
-      -> apacheweb란 이름으로 httpd이미지를 받아서 컨테이너로 만들고 백그라운드로 실행
+      -> apacheweb란 이름으로 httpd이미지(apache)를 받아서 컨테이너로 만들고 백그라운드(-d 옵션)로 실행
 
       -> 하지만 포트가 연결되어 있지 않기 때문에 접근불가!!!
 
@@ -182,7 +182,7 @@
 
       -> FileZilla로 원하는 index.html을 ec2에 업로드하고 컨테이너 내부 파일과 연결한다.
 
-  14. 최종 명령
+  14. 최종 명령!!
 
       docker run -d -p 9999:80 -v /home/ubuntu/index.html:/usr/local/apache2/htdocs --name apacheweb httpd
 
@@ -207,18 +207,3 @@
      docker rm $(docker ps -a -q)
      docker rmi -f $(docker images -q)
      ```
-
-
-### 6. Dockerfile
-
-- Dockerfile는 자신이 직접 커스터마이징한 docker 이미지를 만들 수 있는 파일이다.
-- 실제로 배포과정에서는 거의 필수적으로 작성한다.
-- #이 Dockerfile의 주석이다.
-- 다양한 이미지들의 script를 쌓아서 만든다.
-- Dockerfile 만들기
-  1. 원하는 위치로 가서 vi Dockerfile : Dockerfile이름의 도커 파일이 만들어진다.
-  2. Dockerfile 내용 작성
-  3. docker build --tag myimage . : 내가 작성한 Dockerfile로 이미지 만들기
-
-1. Dockerfile 내부 명령어
-   - LABEL maintainer= "geonho" : geonho가 작성자(key : value 형식)
